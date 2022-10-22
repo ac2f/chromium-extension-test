@@ -16,37 +16,37 @@ function App() {
   useEffect(() => {
     if (activeTab === -1) return;
     console.log("activeTab:", activeTab);
+    (async() => {
+      while (true) {
+        if (activeTab > -1)
+          console.log("[Get Status]", await sendMessageToTab({ action: "get-tab-status" }));
+        await new Promise(r => setTimeout(r, 2000));
+      }
+    })();
     (async () => {
-      console.log("[Get Status]", await sendMessageToTab({ message: "get-status" }));
+      // console.log("[Get Status]", await sendMessageToTab({ message: "get-status" }));
     })();
   }, [activeTab]);
   useEffect(() => {
     if (!firstLoad) return;
     setFirst(false);
+    loader(1000);
     (async() => {
       while (true) {
-        await sendMessageToTab({action: "tab-status"});
+        chrome.tabs.query({}, tabs => setActiveTab(tabs.filter(item => item.active)[0].id));
         await new Promise(r => setTimeout(r, 1000));
       }
     })();
-    loader(1000);
+    // (async() => {
+      //   while (true) {
+    //     await sendMessageToTab({action: "tab-status"});
+    //     await new Promise(r => setTimeout(r, 2000));
+    //   }
+    // })();
     // (async () => {
 
-    // })();
-  }, [firstLoad]);
-  (async() => {
-    while (true) {
-      chrome.tabs.query({}, tabs => setActiveTab(tabs.filter(item => item.active)[0].id));
-      await new Promise(r => setTimeout(r, 1000));
-    }
-  })();
-  (async() => {
-    while (true) {
-      if (activeTab > -1)
-        console.log("[Get Status]", await sendMessageToTab({ message: "get-status" }));
-      await new Promise(r => setTimeout(r, 1000));
-    }
-  })();
+      // })();
+    }, [firstLoad]);
 
   return (
     <div className="App">
