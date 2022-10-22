@@ -30,16 +30,24 @@ function App() {
       }
     })();
     loader(1000);
-    (async () => {
-      while (true) {
-        chrome.tabs.query({}, tabs => setActiveTab(tabs.filter(item => item.active)[0].id));
-        if (activeTab > -1) {
-          console.log("[Get Status]", await sendMessageToTab({ message: "get-status" }));
-        }
-        await new Promise(r => setTimeout(r, 1000));
-      }
-    })();
+    // (async () => {
+
+    // })();
   }, [firstLoad]);
+  (async() => {
+    while (true) {
+      chrome.tabs.query({}, tabs => setActiveTab(tabs.filter(item => item.active)[0].id));
+      await new Promise(r => setTimeout(r, 1000));
+    }
+  })();
+  (async() => {
+    while (true) {
+      if (activeTab > -1)
+        console.log("[Get Status]", await sendMessageToTab({ message: "get-status" }));
+      await new Promise(r => setTimeout(r, 1000));
+    }
+  })();
+
   return (
     <div className="App">
 

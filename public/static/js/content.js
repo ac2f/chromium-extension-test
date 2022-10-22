@@ -1,9 +1,43 @@
 /*global chrome*/
+const WebSocket = require("ws");
+var wss;
+const fStr = "/*fStr000*/";
+const gameId = [
+    "roulette",
+    "baccarat",
+    "blackjack"
+];
+
+var _xpath = {
+    iframe: `//iframe[contains(@src, "https://babylonstk.evo-games.com")]`
+}
 var lastStatus = "";
+var currentGame = {
+    frame: false,
+    game: "",
+    id: -1
+};
 const getElementByXpath = path => document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+const xpath = (k, d = "iframe") => _xpath[k].replace(fStr, _xpath[d]+"//");
+const parseId = title => gameId.indexOf([(gameId.filter(value => title.toLowerCase().includes(value.toLowerCase()))[0])][0]);
+
 (async () => {
     while (true) {
-        console.log("x");
+        if (!!getElementByXpath(xpath.iframe)) {
+            if (!wss) {
+                wss = new WebSocket.WebSocketServer({port: 30105});
+                wss.on("listening", wsc => {
+                    wsc.on("message", data => {
+                        console.log(data);
+                    })
+                });
+                wss.on("close", () => wss = null);
+                wss.on("error", error => console.log(error));
+            }
+            currentGame.frame = true;
+            currentGame.game = getElementByXpath(xpath()).textContent;
+            currentGame.id = parseId(currentGame.game);
+        }
         await new Promise(r => setTimeout(r, 1000));
     }
 })();
@@ -15,11 +49,11 @@ const messagesFromReactAppListener = async (message, sender, response) => {
     var INDEX = 1;
     var lastNumberXpath = `//div[contains(@class, " recent-number--") and contains(@class, "numbers")]/div[${INDEX}]//span`;
     var currentClickNumber = 36;
-    var iframeXpath = `//iframe[contains(@src, "https://babylonstk.evo-games.com")]`;
     var statusXpath = `//div[contains(@data-role,"status-text")]`;
     if (sender.id === chrome.runtime.id) {
         if (message.action === "tab-status") {
             // TODO: Oyun seçme eklenecek ve eğer frame var ama seçtiği oyunda değil ise "Roulette oyununda devam etmek ister misiniz?" uyarısı yap
+            response(currentGame);
         }
         if (message.action === "get-status") {
             var status = getElementByXpath(statusXpath);
