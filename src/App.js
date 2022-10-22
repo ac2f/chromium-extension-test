@@ -1,65 +1,72 @@
 /*global chrome*/
+/* */
 import logo from './logo.svg';
-import {useEffect, useState} from "react";
-// import { ChromeMessage, Sender } from "./types";
+import { useEffect, useState } from "react";
 import './App.css';
 
 function App() {
   const getElementByXpath = path => document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
-  const sendMessageToTab = async data => await (new Promise (r=>chrome.tabs.sendMessage(activeTab, data, response => r(response))));
-  const [value, setValue] = useState(document.getElementById("test") ? document.getElementById("test").value :  "");
-  const [first, setFirst] = useState(true);
+  const sendMessageToTab = async data => await (new Promise(r => chrome.tabs.sendMessage(activeTab, data, response => r(response))));
+  const loader = async timestamp => { setLoading(true); await new Promise(r => setTimeout(r, timestamp)); setLoading(false); };
+  const [loading, setLoading] = useState(true);
+  const [value, setValue] = useState(document.getElementById("test") ? document.getElementById("test").value : "");
+  const [firstLoad, setFirst] = useState(true);
   const [activeTab, setActiveTab] = useState(-1);
+  const [selectedGame, setSelectedGame] = useState(null);
   useEffect(() => {
     if (activeTab === -1) return;
     console.log("activeTab:", activeTab);
-    // chrome.tabs.sendMessage(activeTab, {message: "get-status"}, response => console.log("Response:", response));
     (async () => {
-      console.log("[Get Status]", await sendMessageToTab({message: "get-status"}));
+      console.log("[Get Status]", await sendMessageToTab({ message: "get-status" }));
     })();
-    // chrome.tabs.sendMessage(activeTab, {from: "react", message: "delete logo"}, response => console.log("Response:", response));
   }, [activeTab]);
   useEffect(() => {
-    if (!first) return;
+    if (!firstLoad) return;
     setFirst(false);
     (async() => {
       while (true) {
-        chrome.tabs.query({}, tabs => setActiveTab(tabs.filter(item => item.active)[0].id));
-        if (activeTab > -1) {
-          console.log("[Get Status]", await sendMessageToTab({message: "get-status"}));
-        }
-        // setValue(String.toString(chrome.prototype));
-        // setValue(chrome.app.toString());
-        // chrome.runtime..addListener(function (msg, sender, sendResponse) {
-        //   console.log(msg, sender, sendResponse);
-        // });
-        // chrome.logMessage("chrome");
-        // setValue(document.getElementById("text") ? document.getElementById("text").innerText : "NOTFOUND");
-        // setValue(window.location.href);
-        await new Promise(r => setTimeout(r, 5000));
+        await sendMessageToTab({action: "tab-status"});
+        await new Promise(r => setTimeout(r, 1000));
       }
     })();
-  }, [first]);
+    loader(1000);
+    (async () => {
+      while (true) {
+        chrome.tabs.query({}, tabs => setActiveTab(tabs.filter(item => item.active)[0].id));
+        if (activeTab > -1) {
+          console.log("[Get Status]", await sendMessageToTab({ message: "get-status" }));
+        }
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    })();
+  }, [firstLoad]);
   return (
     <div className="App">
-    <div className="status">
-      <div className="loader">
-        <div id="_a1"></div>
-        <div id="_a2"></div>
-        <div id="_a3"></div>
-        <div id="_a4"></div>
+
+      <div className="status">
+      {
+        loading ? (
+          <div className="loader-circle">
+            <div id="block"></div>
+          </div>
+        ) : (
+          <div>
+            <div className="loader">
+              <div id="_a1"></div>
+              <div id="_a2"></div>
+              <div id="_a3"></div>
+              <div id="_a4"></div>
+            </div>
+            <div className="text">
+              <a>Waiting for <strong id="provider">Evolution Gaming</strong> frame..</a>
+              {/* <button onClick={async() =>  console.log("[Click]", await sendMessageToTab({message: "click", order: ["0", "36", "25"]}))}>SEND CLICK</button>
+            <button onClick={async() =>  console.log("[XPATH Click]", await sendMessageToTab({message: "click-xpath", xpath: `//button[@data-role="favorite-bets-button"]`}))}>CLICK XPATH</button>
+            <button onClick={async() =>  console.log("[Get Status]", await sendMessageToTab({message: "get-status"}))}>GET STATUS</button> */}
+            </div>
+          </div>
+        )
+      }
       </div>
-      <div className="text">
-        <a>Waiting for Evolution Gaming frame</a>
-        <button onClick={async() =>  console.log("[Click]", await sendMessageToTab({message: "click", order: ["0", "36", "25"]}))}>SEND CLICK</button>
-        <button onClick={async() =>  console.log("[XPATH Click]", await sendMessageToTab({message: "click-xpath", xpath: `//button[@data-role="favorite-bets-button"]`}))}>CLICK XPATH</button>
-        <button onClick={async() =>  console.log("[Get Status]", await sendMessageToTab({message: "get-status"}))}>GET STATUSL</button>
-      </div>
-    </div>
-    <div className="frame">
-      <a id="test">{value}</a>
-    </div>
-    {/* <iframe src='https://stake.com' width={"500px"} height={"500px"}/> */}
     </div>
   );
 }

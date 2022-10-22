@@ -15,6 +15,57 @@
     -o-transform: translateY(-7px);
   }
 }
+@keyframes rgbFore {
+  0% {
+    color: red;
+  }
+  14% {
+    color: yellow;
+  }
+  28% {
+    color: lime;
+  }
+  44% {
+    color: aqua;
+  }
+  58% {
+    color: royalblue;
+  }
+  82% {
+    color: magenta;
+  }
+  100% {
+    color: red;
+  }
+}
+@keyframes rotate {
+  0% {
+    border-color: red;
+  }
+  14% {
+    border-color: yellow;
+  }
+  28% {
+    border-color: lime;
+  }
+  44% {
+    border-color: aqua;
+  }
+  58% {
+    border-color: royalblue;
+  }
+  82% {
+    border-color: magenta;
+  }
+  100% {
+    border-color: red;
+    transform: rotate(360deg);
+    -webkit-transform: rotate(360deg);
+    -moz-transform: rotate(360deg);
+    -ms-transform: rotate(360deg);
+    -o-transform: rotate(360deg);
+}
+}
 body {
   width: var(--body-width);
   height: var(--body-height);
@@ -67,17 +118,50 @@ body {
   margin-block: auto;
   vertical-align:middle;
   position: relative;
-  bottom: -40vh;
+  bottom: -35vh;
 }
 .status .text a, .status .text {
+
   color: var(--loader-fill-color);
   font-family: Verdana, Geneva, Tahoma, sans-serif;
   font-size: medium;
   width: fit-content;
-  margin-top: 15px;
+  margin-top: 55px;
   margin-inline: auto;
   text-align: center;
 }
 #test {
   color: #fff;
+}
+#provider {
+  letter-spacing: 1px;
+  animation: rgbFore 5s infinite linear 0s;
+  transition: 1s;
+  -webkit-transition: 1s;
+  -moz-transition: 1s;
+  -ms-transition: 1s;
+  -o-transition: 1s;
+  -webkit-animation: rgbFore 5s infinite linear 0s;
+}
+.loader-circle #block{
+  margin-inline: auto;
+  margin-block: auto;
+  transition: 5s;
+  width: 35px;
+  height: 35px;
+  /*background-color: aqua;
+  */border: 5px solid white;
+  animation: rotate 1s infinite linear 0s;
+  border-bottom: none;
+  border-right: none;
+  border-radius: 50%;
+  -webkit-border-radius: 50%;
+  -moz-border-radius: 50%;
+  -ms-border-radius: 50%;
+  -o-border-radius: 50%;
+  -webkit-animation: rotate 1s infinite linear 0s;
+  -webkit-transition: 5s;
+  -moz-transition: 5s;
+  -ms-transition: 5s;
+  -o-transition: 5s;
 }
