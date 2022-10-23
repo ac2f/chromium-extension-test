@@ -1,6 +1,7 @@
 /*global chrome*/
 var wsc;
 const fStr = "/*fStr000*/";
+const iStr = "/*iStr000*/";
 const gameId = [
     "roulette",
     "baccarat",
@@ -9,7 +10,12 @@ const gameId = [
 
 var _xpath = {
     iframe: `//*[contains(@src, "https://babylonstk.evo-games.com")]`,
-    gameName: `//span[@data-role="table-name"]`
+    gameName: `//span[@data-role="table-name"]`,
+    lastNumber: `//div[contains(@class,"recent-numbers")]/div/div[${iStr}]//span[contains(@class, "value")]`,
+    viewImmersive: `//div[@data-role="current-view-immersivev2"]`,
+    viewClassic: `//div[@data-role="current-view-classic"]`,
+    viewImmersive__Status: `//div[contains(@class, "timerAndResult")]/div`,
+    viewClassic__Status: `//div[@data-role="status-text"][contains(text(), "BETS") or contains(text(), "BLACK") or contains(text(), "GREEN") or contains(text(), "RED")]`
 };
 var lastStatus = "";
 var currentGame = {
@@ -17,10 +23,10 @@ var currentGame = {
     game: "",
     id: -1
 };
-const getElementByXpath = path => document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
-const xpath = (k, d = "iframe") => _xpath[k].replace(fStr, _xpath[d] + "//");
+const getElementByXpath = xpath => document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+const xpath = (k, i = 1, d = "iframe") => _xpath[k].replace(fStr, _xpath[d] + "//").replace(iStr, i + "");
 const parseId = title => gameId.indexOf([(gameId.filter(value => title.toLowerCase().includes(value.toLowerCase()))[0])][0]);
-const log = (src, text) => null//console.log(src.split(",").map(value => `[${value}]`).join(""), text);
+const log = (src, text) => console.log(src.split(",").map(value => `[${value}]`).join(""), text);
 var frameExist = false;
 (async () => {
     while (true) {
@@ -29,31 +35,71 @@ var frameExist = false;
         if (!!x) {
             !frameExist && log("FRAMECHECK", "Frame exist!");
             if (!wsc) {
-                log("FRAMECHECK,WSS", "WSS not set! Connecting port 30105..");
-                wsc = new WebSocket(`ws://localhost:30105`);
-                wsc.onopen = () => {
-                    log("FRAMECHECK,WSS", "WSS opened! Waiting for data..");
-                };
-                wsc.onmessage = data => {
-                    log("FRAMECHECK,WSS", `WSS sent data: ${data.data}`);
-                };
-                wsc.onclose = () => wsc = null;
-                wsc.onerror = error => console.log(error);
+                try {
+                    log("FRAMECHECK,WSS", "WSS not set! Connecting port 30105..");
+                    wsc = new WebSocket(`ws://localhost:30105`);
+                    wsc.onopen = () => {
+                        log("FRAMECHECK,WSS", "WSS opened! Waiting for data..");
+                    };
+                    wsc.onmessage = data => {
+                        log("FRAMECHECK,WSS", `WSS sent data: ${data.data}`);
+                    };
+                    wsc.onclose = () => wsc = null;
+                    wsc.onerror = error => console.log(error);
+                } catch (error) {
+                    log("FRAMECHECK,WSS", "Failed to connect WSS. WSS might not be active or firewall blocks the connection. ");
+                }
             }
             currentGame.frame = true;
             if (!frameExist) {
                 var tmpText = getElementByXpath(xpath("gameName"));
-                if (tmpText) {
+                if (tmpText && tmpText.textContent.length > 0) {
                     currentGame.game = tmpText.textContent;
                     currentGame.id = parseId(tmpText.textContent);
                 }
-                console.log(`SET: ${currentGame}`);
+                console.log(`SET: ${JSON.stringify(currentGame)}`);
             }
             localStorage.setItem("currentGame", JSON.stringify(currentGame));
             frameExist = true;
         } else {
+            currentGame.frame = false;
             frameExist = false;
         }
+        await new Promise(r => setTimeout(r, 3000));
+    }
+})();
+(async () => {
+    while (true) {
+        if (!currentGame.frame) { await new Promise(r => setTimeout(r, 1000)); continue; }
+        log("FRAMECHECK,GAMETYPE", "Checking if view is classic or immersive..");
+        var isClassicView = false;
+        if (!!getElementByXpath(xpath("viewClassic"))) {
+            log("FRAMECHECK,GAMETYPE", "View is classic.");
+            isClassicView = true;
+        } else if (!!getElementByXpath(xpath("viewImmersive"))) { } else {
+            !isClassicView && log("FRAMECHECK,GAMETYPE", "Couldn't detect view. Retrying..");
+            await new Promise(r => setTimeout(r, 10000));
+            continue;
+        }
+        !isClassicView && log("FRAMECHECK,GAMETYPE", "View is immersive.");
+        log("FRAMECHECK,GAMETYPE", `View is ${isClassicView ? "Classic" : "Immersive"}.`);
+        if (!!getElementByXpath(xpath(isClassicView ? "viewClassic__Status" : "viewImmersive__Status"))) {
+            log("FRAMECHECK,GAMETYPE", `Status is accessable for the ${isClassicView ? "Classic" : "Immersive"} view.`);
+            var numbers = [];
+            for (let index = 1; index < 3; index++) {
+                var lastNumberElement;
+                while (true) {
+                    lastNumberElement = getElementByXpath(xpath("lastNumber", index));
+                    if (lastNumberElement && lastNumberElement.textContent.length > 0) break;
+                    await new Promise(r => setTimeout(r, 300));
+                }
+                var value = lastNumberElement.textContent;
+                log("FRAMECHECK,GAMETYPE", `Number at index ${index} is ${value}`);
+                numbers.push(value);
+            }
+            log("FRAMECHECK,GAMETYPE", `Fetched last numbers ${numbers.join("")}`);
+        }
+        await new Promise(r => setTimeout(r, 1500));
     }
 })();
 const messagesFromReactAppListener = async (message, sender, response) => {

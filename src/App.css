@@ -165,3 +165,17 @@ body {
   -ms-transition: 5s;
   -o-transition: 5s;
 }
+.main {
+
+}
+.main #playing {
+  font-size: 10px;
+  color: greenyellow;
+  display: block;
+  width: fit-content;
+  margin-top: 10px;
+  margin-inline: auto;
+}
+.main #playing a {
+  color: hotpink;
+}
