@@ -23,17 +23,18 @@ var currentGame = {
     game: "",
     id: -1
 };
+var view = "";
 const getElementByXpath = xpath => document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
 const xpath = (k, i = 1, d = "iframe") => _xpath[k].replace(fStr, _xpath[d] + "//").replace(iStr, i + "");
 const parseId = title => gameId.indexOf([(gameId.filter(value => title.toLowerCase().includes(value.toLowerCase()))[0])][0]);
 const log = (src, text) => console.log(src.split(",").map(value => `[${value}]`).join(""), text);
 var frameExist = false;
-(async () => {
-    while (true) {
+setInterval(() => {
         var x = getElementByXpath(xpath("iframe"));
         !frameExist && log("FRAMECHECK", "Checking..");
         if (!!x) {
             !frameExist && log("FRAMECHECK", "Frame exist!");
+            log("FRAMECHECK", `Frame exist 0: ${frameExist}`);
             if (!wsc) {
                 try {
                     log("FRAMECHECK,WSS", "WSS not set! Connecting port 30105..");
@@ -51,6 +52,7 @@ var frameExist = false;
                 }
             }
             currentGame.frame = true;
+            log("FRAMECHECK", `--- Frame exist: ${currentGame.frame}`);
             if (!frameExist) {
                 var tmpText = getElementByXpath(xpath("gameName"));
                 if (tmpText && tmpText.textContent.length > 0) {
@@ -59,27 +61,26 @@ var frameExist = false;
                 }
                 console.log(`SET: ${JSON.stringify(currentGame)}`);
             }
-            localStorage.setItem("currentGame", JSON.stringify(currentGame));
             frameExist = true;
         } else {
+            log("FRAMECHECK", "Xpath not exist!");
             currentGame.frame = false;
             frameExist = false;
         }
-        await new Promise(r => setTimeout(r, 3000));
-    }
-})();
-(async () => {
-    while (true) {
-        if (!currentGame.frame) { await new Promise(r => setTimeout(r, 1000)); continue; }
+        localStorage.setItem("currentGame", JSON.stringify(currentGame));
+}, 3000);
+setInterval(() =>
+     (async () => {
+        if (!currentGame.frame) return;
         log("FRAMECHECK,GAMETYPE", "Checking if view is classic or immersive..");
         var isClassicView = false;
-        if (!!getElementByXpath(xpath("viewClassic"))) {
+        if (!! getElementByXpath(xpath("viewClassic"))) {
             log("FRAMECHECK,GAMETYPE", "View is classic.");
+            view = "classic";
             isClassicView = true;
-        } else if (!!getElementByXpath(xpath("viewImmersive"))) { } else {
+        } else if (!!getElementByXpath(xpath("viewImmersive"))) { view = "immersive"; } else {
             !isClassicView && log("FRAMECHECK,GAMETYPE", "Couldn't detect view. Retrying..");
-            await new Promise(r => setTimeout(r, 10000));
-            continue;
+            return;
         }
         !isClassicView && log("FRAMECHECK,GAMETYPE", "View is immersive.");
         log("FRAMECHECK,GAMETYPE", `View is ${isClassicView ? "Classic" : "Immersive"}.`);
@@ -91,7 +92,7 @@ var frameExist = false;
                 while (true) {
                     lastNumberElement = getElementByXpath(xpath("lastNumber", index));
                     if (lastNumberElement && lastNumberElement.textContent.length > 0) break;
-                    await new Promise(r => setTimeout(r, 300));
+                    await new Promise(r => setTimeout(r, 1000));
                 }
                 var value = lastNumberElement.textContent;
                 log("FRAMECHECK,GAMETYPE", `Number at index ${index} is ${value}`);
@@ -99,9 +100,8 @@ var frameExist = false;
             }
             log("FRAMECHECK,GAMETYPE", `Fetched last numbers ${numbers.join("")}`);
         }
-        await new Promise(r => setTimeout(r, 1500));
-    }
-})();
+    })().then(res => res)
+, 1500);
 const messagesFromReactAppListener = async (message, sender, response) => {
     // console.log('[content.js]. Message received', {
     //     message,
@@ -118,6 +118,12 @@ const messagesFromReactAppListener = async (message, sender, response) => {
             var data = JSON.parse(localStorage.getItem("currentGame"));
             response(data);
             console.log(data);
+        }
+        if (message.action === "get-view-type") {
+            response(view);
+        }
+        if (message.action === "get-[view-type,tab-status]") {
+            response([JSON.parse(localStorage.getItem("currentGame")), view]);
         }
         if (message.action === "get-status") {
             var status = getElementByXpath(statusXpath);

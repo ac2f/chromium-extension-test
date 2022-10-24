@@ -20,7 +20,7 @@ function App() {
   const [activeTab, setActiveTab] = useState(-1);
   const [selectedGame, setSelectedGame] = useState(null);
   const [loopValue0, setLoopValue0] = useState(-1);
-  const [loopValue1, setLoopValue1] = useState(-1);
+  const [view, setView] = useState(null);
   const [lastGame, setLastGame] = useState({
     frame: false,
     game: "",
@@ -34,6 +34,13 @@ function App() {
       game: "",
       id: -1
     });
+    setInterval(() => {
+      if (activeTab < 0) return;
+      // var data;
+      console.log("XX1");
+      chrome.tabs.sendMessage(activeTab, { action: "get-[view-type,tab-status]" }, response => [((response[0].frame && response[0].game.length > 0) || !response[0].frame) && setLastGame(response[0]), (response[1] && response[1].length > 0) && setView(response[1])]);
+      // chrome.tabs.sendMessage(activeTab, { action: "get-view-type" }, response => response && setView(response));
+    }, 1000);
     (async () => {
       // while (true) {
       //   await new Promise(r => setTimeout(r, 2000));
@@ -45,27 +52,31 @@ function App() {
   }, [activeTab]);
   useEffect(() => {
     if (!firstLoad) return;
-    (async () => {
-      setFirst(false);
-      await loader(1000);
-      while (true) {
-        chrome.tabs.query({}, tabs => setActiveTab(tabs.filter(item => item.active)[0].id));
-        await new Promise(r => setTimeout(r, 1000));
-      }
-    })();
-  }, [firstLoad])
+    setFirst(false);
+    loader(1000);
+    setInterval(() => {
+      console.log("XX0");
+      chrome.tabs.query({}, tabs => setActiveTab(tabs.filter(item => item.active)[0].id));
+    }, 1000);
+
+    // (async () => {
+    //   while (true) {
+    //     await new Promise(r => setTimeout(r, 1000));
+    //   }
+    // })();
+  }, [firstLoad]);
   useEffect(() => {
     log("LASTGAME", JSON.stringify(lastGame));
   }, [lastGame]);
   useEffect(() => {
     // console.log("LOOP0");
-    (async () => {
-      if (activeTab < 0) return;
-      // var data;
-      chrome.tabs.sendMessage(activeTab, { action: "get-tab-status" }, response => (response.frame && response.game.length > 0) && setLastGame(response));
-      // console.log("[Get Status]", );
-      await new Promise(r => setTimeout(r, 3000));
-    })().then(() => setLoopValue0(loopValue0 + (loopValue0 < 1 ? 1 : -1)));
+    // // (async () => {
+    // //   if (activeTab < 0) return;
+    // //   // var data;
+    // //   // chrome.tabs.sendMessage(activeTab, { action: "get-tab-status" }, response => (response.frame && response.game.length > 0) && setLastGame(response));
+    // //   // console.log("[Get Status]", );
+    // //   await new Promise(r => setTimeout(r, 3000));
+    // // })().then(() => setLoopValue0(loopValue0 + (loopValue0 < 1 ? 1 : -1)));
     // (async() => {
     //   while (true) {
     //     await sendMessageToTab({action: "tab-status"});
@@ -75,16 +86,25 @@ function App() {
     // (async () => {
 
     // })();
-  }, [loopValue0]);
+  }, []);
+  // setInterval(() => {
+  //   chrome.tabs.sendMessage(activeTab, { action: "get-tab-status" }, response => (response.frame && response.game.length > 0) && setLastGame(response));
+  // }, 3000);
   useEffect(() => {
+    // const interval1 = setInterval(() => {
+    //   chrome.tabs.query({}, tabs => setActiveTab(tabs.filter(item => item.active)[0].id));
+    // }, 1000);
+    // const interval2 = setInterval(() => {
+    //   if (activeTab < 0) return;
+    //   // var data;
+    //   chrome.tabs.sendMessage(activeTab, { action: "get-tab-status" }, response => (response.frame && response.game.length > 0) && setLastGame(response));
+    // }, 3000);
+    // return () => [clearInterval(interval1), clearInterval(interval2)];
     // console.log("LOOP0");
-    (async () => {
-      if (activeTab < 0 || !lastGame.frame) return;
-      // var data;
-      chrome.tabs.sendMessage(activeTab, { action: "get-tab-status" }, response => (response.frame && response.game.length > 0) && setLastGame(response));
-      // console.log("[Get Status]", );
-      await new Promise(r => setTimeout(r, 3000));
-    })().then(() => setLoopValue1(loopValue1 + (loopValue1 < 1 ? 1 : -1)));
+    // // (async () => {
+    // //   // console.log("[Get Status]", );
+    // //   await new Promise(r => setTimeout(r, 3000));
+    // // })().then(() => setLoopValue1(loopValue1 + (loopValue1 < 1 ? 1 : -1)));
     // (async() => {
     //   while (true) {
     //     await sendMessageToTab({action: "tab-status"});
@@ -94,7 +114,7 @@ function App() {
     // (async () => {
 
     // })();
-  }, [loopValue1]);
+  }, []);
 
   return (
     <div className="App">
@@ -129,6 +149,7 @@ function App() {
           <div className='main'>
             <div className='top'>
               <a id="playing">Currently playing <a id="gameName">{gameId[lastGame.id][0].toUpperCase() + gameId[lastGame.id].slice(1)}</a> in the lobby <a id="gameLobby">{lastGame.game}</a>.</a>
+              <a>View is: {view}</a>
             </div>
           </div>
         )
