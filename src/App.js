@@ -19,15 +19,23 @@ function App() {
   const [firstLoad, setFirst] = useState(true);
   const [activeTab, setActiveTab] = useState(-1);
   const [selectedGame, setSelectedGame] = useState(null);
-  const [loopValue0, setLoopValue0] = useState(-1);
-  const [view, setView] = useState(null);
+  const [lastNumberTimestamp, setLastNumberTimestamp] = useState(17347346);
+  const [lastNumbers, setLastNumbers] = useState([6,12,0,3, 33,36]);
+  const parseColor = num => [parseInt(num.toString())].map(value => value > -1 && value < 37)[0] ? (num.toString() === "0" ? "green" : "1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36".split(",").includes(num.toString()) ? "red" : "black") : null;
+  const [intervals, setIntervals] = useState({
+    roulette: [],
+    baccarat: [],
+    blackjack: []
+  });
+  const [view, setView] = useState("immersive");
   const [lastGame, setLastGame] = useState({
     frame: false,
     game: "",
     id: -1
   });
   useEffect(() => {
-    if (activeTab === -1) return;
+    setLastGame({ frame: true, game: "roulette", id: 0 });
+    if (activeTab < 0) return;
     console.log("activeTab:", activeTab);
     setLastGame({
       frame: false,
@@ -37,10 +45,17 @@ function App() {
     setInterval(() => {
       if (activeTab < 0) return;
       // var data;
-      console.log("XX1");
-      chrome.tabs.sendMessage(activeTab, { action: "get-[view-type,tab-status]" }, response => [((response[0].frame && response[0].game.length > 0) || !response[0].frame) && setLastGame(response[0]), (response[1] && response[1].length > 0) && setView(response[1])]);
+      // console.log("XX1");
+      chrome.tabs && chrome.tabs.sendMessage(activeTab, { action: "get-[view-type,tab-status]" }, response => [((response[0].frame && response[0].game.length > 0) || !response[0].frame) && setLastGame(response[0]), (response[1] && response[1].length > 0) && setView(response[1])]);
       // chrome.tabs.sendMessage(activeTab, { action: "get-view-type" }, response => response && setView(response));
     }, 1000);
+    setInterval(() => {
+      if (activeTab < 0) return;
+      // var data;
+      // console.log("XX2");
+      chrome.tabs && chrome.tabs.sendMessage(activeTab, { action: "get-numbers" }, response => [(response && response.length > 0 && response !== lastNumbers) && setLastNumbers(response)]);
+      // chrome.tabs.sendMessage(activeTab, { action: "get-view-type" }, response => response && setView(response));
+    }, 300);
     (async () => {
       // while (true) {
       //   await new Promise(r => setTimeout(r, 2000));
@@ -55,8 +70,8 @@ function App() {
     setFirst(false);
     loader(1000);
     setInterval(() => {
-      console.log("XX0");
-      chrome.tabs.query({}, tabs => setActiveTab(tabs.filter(item => item.active)[0].id));
+      // console.log("XX0");
+      chrome.tabs && chrome.tabs.query({}, tabs => setActiveTab(tabs.filter(item => item.active)[0].id));
     }, 1000);
 
     // (async () => {
@@ -148,8 +163,21 @@ function App() {
         lastGame.frame && (
           <div className='main'>
             <div className='top'>
-              <a id="playing">Currently playing <a id="gameName">{gameId[lastGame.id][0].toUpperCase() + gameId[lastGame.id].slice(1)}</a> in the lobby <a id="gameLobby">{lastGame.game}</a>.</a>
-              <a>View is: {view}</a>
+              <div className='playing'>
+                <a id="l">Playing <a id="hint">{gameId[lastGame.id][0].toUpperCase() + gameId[lastGame.id].slice(1)}</a></a>
+                <a id="r"><a id="hint">{lastGame.game}</a></a>
+              </div>
+            </div>
+            <div className='content'>
+              <a id="text">Last numbers</a>
+              <div className='lastNumbers'>
+                {lastNumbers.map((value, index) => <a id={parseColor(value)} className={index < lastNumbers.length -1 ? `_${index}` : "_last"}>{value}</a>)}
+              </div>
+              <a id="dt">Last update was at <a id="date">{[new Date(lastNumberTimestamp)].map(value => `${value.toLocaleDateString("en-US")} ${value.toLocaleTimeString("en-US")}`)}</a></a>
+            </div>
+            <div className='bottom'>
+              { view.length > 0 && <a><a id="hint">{view[0].toUpperCase() + view.slice(1)}</a> view</a>}
+
             </div>
           </div>
         )

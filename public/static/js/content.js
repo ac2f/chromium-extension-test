@@ -23,85 +23,99 @@ var currentGame = {
     game: "",
     id: -1
 };
+var numbers = [];
 var view = "";
 const getElementByXpath = xpath => document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
 const xpath = (k, i = 1, d = "iframe") => _xpath[k].replace(fStr, _xpath[d] + "//").replace(iStr, i + "");
 const parseId = title => gameId.indexOf([(gameId.filter(value => title.toLowerCase().includes(value.toLowerCase()))[0])][0]);
 const log = (src, text) => console.log(src.split(",").map(value => `[${value}]`).join(""), text);
 var frameExist = false;
-setInterval(() => {
-        var x = getElementByXpath(xpath("iframe"));
-        !frameExist && log("FRAMECHECK", "Checking..");
-        if (!!x) {
-            !frameExist && log("FRAMECHECK", "Frame exist!");
-            log("FRAMECHECK", `Frame exist 0: ${frameExist}`);
-            if (!wsc) {
-                try {
-                    log("FRAMECHECK,WSS", "WSS not set! Connecting port 30105..");
-                    wsc = new WebSocket(`ws://localhost:30105`);
-                    wsc.onopen = () => {
-                        log("FRAMECHECK,WSS", "WSS opened! Waiting for data..");
-                    };
-                    wsc.onmessage = data => {
-                        log("FRAMECHECK,WSS", `WSS sent data: ${data.data}`);
-                    };
-                    wsc.onclose = () => wsc = null;
-                    wsc.onerror = error => console.log(error);
-                } catch (error) {
-                    log("FRAMECHECK,WSS", "Failed to connect WSS. WSS might not be active or firewall blocks the connection. ");
-                }
-            }
-            currentGame.frame = true;
-            log("FRAMECHECK", `--- Frame exist: ${currentGame.frame}`);
-            if (!frameExist) {
-                var tmpText = getElementByXpath(xpath("gameName"));
-                if (tmpText && tmpText.textContent.length > 0) {
-                    currentGame.game = tmpText.textContent;
-                    currentGame.id = parseId(tmpText.textContent);
-                }
-                console.log(`SET: ${JSON.stringify(currentGame)}`);
-            }
-            frameExist = true;
-        } else {
-            log("FRAMECHECK", "Xpath not exist!");
-            currentGame.frame = false;
-            frameExist = false;
+// var wssConnectionTries = 0;
+const initWS = () => {
+    if (!wsc) {
+        try {
+            log("WSS", "WSS not set! Connecting port 30105..");
+            wsc = new WebSocket(`ws://localhost:30105`);
+            wsc.onopen = () => {
+                log("WSS", "WSS opened! Waiting for data..");
+            };
+            wsc.onmessage = data => {
+                log("WSS", `WSS sent data: ${data.data}`);
+            };
+            wsc.onclose = () => [log("WSS", "WSS closed!"), alert("Connection to program has closed! You must run the application and reload the page.")];
+            wsc.onerror = error => console.log(error);
+        } catch (error) {
+            ["Failed to connect to program. Program might not be running or firewall blocks the connection."].map(value => [log("WSS", value), alert(value)]);
+            // log("WSS", "Failed to connect to program. Program might not be running or firewall blocks the connection.");
         }
-        localStorage.setItem("currentGame", JSON.stringify(currentGame));
+    }
+};
+setInterval(() => {
+    var x = getElementByXpath(xpath("iframe"));
+    !frameExist && log("FRAMECHECK", "Checking..");
+    if (!!x) {
+        !frameExist && log("FRAMECHECK", "Frame exist!");
+        log("FRAMECHECK", `Frame exist 0: ${frameExist}`);
+        currentGame.frame = true;
+        log("FRAMECHECK", `--- Frame exist: ${currentGame.frame}`);
+        initWS();
+        if (!frameExist) {
+            var tmpText = getElementByXpath(xpath("gameName"));
+            if (tmpText && tmpText.textContent.length > 0) {
+                currentGame.game = tmpText.textContent;
+                currentGame.id = parseId(tmpText.textContent);
+            }
+            console.log(`SET: ${JSON.stringify(currentGame)}`);
+        }
+        frameExist = true;
+    } else {
+        log("FRAMECHECK", "Xpath not exist!");
+        currentGame.frame = false;
+        frameExist = false;
+    }
+    localStorage.setItem("currentGame", JSON.stringify(currentGame));
 }, 3000);
+setInterval(() => (async () => {
+    if (!currentGame.frame || currentGame.id !== parseId("roulette")) return;
+    var tmpArr = [];
+    var max = 6;
+    for (let index = 1; index <= max; index++) {
+        var lastNumberElement;
+        while (true) {
+            lastNumberElement = getElementByXpath(xpath("lastNumber", index));
+            if (lastNumberElement && lastNumberElement.textContent.length > 0) break;
+            await new Promise(r => setTimeout(r, 100));
+        }
+        var value = lastNumberElement.textContent;
+        tmpArr.push(value);
+        await new Promise(r => setTimeout(r, 100));
+    }
+    if(numbers !== max) numbers = tmpArr;
+    // else numbers[0] = tmpArr[0];
+})().then(res => res), 1000);
 setInterval(() =>
-     (async () => {
+    (async () => {
+        var _view = view;
         if (!currentGame.frame) return;
-        log("FRAMECHECK,GAMETYPE", "Checking if view is classic or immersive..");
+        // log("FRAMECHECK,GAMETYPE", "Checking if view is classic or immersive..");
         var isClassicView = false;
-        if (!! getElementByXpath(xpath("viewClassic"))) {
-            log("FRAMECHECK,GAMETYPE", "View is classic.");
+        if (!!getElementByXpath(xpath("viewClassic"))) {
+            // _view !== "classic" && log("FRAMECHECK,GAMETYPE", "View is classic.");
             view = "classic";
             isClassicView = true;
         } else if (!!getElementByXpath(xpath("viewImmersive"))) { view = "immersive"; } else {
             !isClassicView && log("FRAMECHECK,GAMETYPE", "Couldn't detect view. Retrying..");
             return;
         }
-        !isClassicView && log("FRAMECHECK,GAMETYPE", "View is immersive.");
-        log("FRAMECHECK,GAMETYPE", `View is ${isClassicView ? "Classic" : "Immersive"}.`);
+        // _view !== "immersive" && !isClassicView && log("FRAMECHECK,GAMETYPE", "View is immersive.");
+        view !== _view && log("FRAMECHECK,GAMETYPE", `View is ${isClassicView ? "Classic" : "Immersive"}.`);
         if (!!getElementByXpath(xpath(isClassicView ? "viewClassic__Status" : "viewImmersive__Status"))) {
-            log("FRAMECHECK,GAMETYPE", `Status is accessable for the ${isClassicView ? "Classic" : "Immersive"} view.`);
-            var numbers = [];
-            for (let index = 1; index < 3; index++) {
-                var lastNumberElement;
-                while (true) {
-                    lastNumberElement = getElementByXpath(xpath("lastNumber", index));
-                    if (lastNumberElement && lastNumberElement.textContent.length > 0) break;
-                    await new Promise(r => setTimeout(r, 1000));
-                }
-                var value = lastNumberElement.textContent;
-                log("FRAMECHECK,GAMETYPE", `Number at index ${index} is ${value}`);
-                numbers.push(value);
-            }
-            log("FRAMECHECK,GAMETYPE", `Fetched last numbers ${numbers.join("")}`);
+            // log("FRAMECHECK,GAMETYPE", `Status is accessable for the ${isClassicView ? "Classic" : "Immersive"} view.`);
+
+            // log("FRAMECHECK,GAMETYPE", `Fetched last numbers ${numbers.join("")}`);
         }
     })().then(res => res)
-, 1500);
+    , 1500);
 const messagesFromReactAppListener = async (message, sender, response) => {
     // console.log('[content.js]. Message received', {
     //     message,
@@ -112,18 +126,22 @@ const messagesFromReactAppListener = async (message, sender, response) => {
     var currentClickNumber = 36;
     var statusXpath = `//div[contains(@data-role,"status-text")]`;
     if (sender.id === chrome.runtime.id) {
-        console.log(message.action);
+        log("REQUEST", message.action);
         if (message.action === "get-tab-status") {
-            // TODO: Oyun seçme eklenecek ve eğer frame var ama seçtiği oyunda değil ise "Roulette oyununda devam etmek ister misiniz?" uyarısı yap
             var data = JSON.parse(localStorage.getItem("currentGame"));
             response(data);
-            console.log(data);
+            log(`RESPONSE,${message.action}`, data);
         }
         if (message.action === "get-view-type") {
             response(view);
+            log(`RESPONSE,${message.action}`, view);
         }
         if (message.action === "get-[view-type,tab-status]") {
             response([JSON.parse(localStorage.getItem("currentGame")), view]);
+            log(`RESPONSE,${message.action}`, "");
+        }
+        if (message.action === "get-numbers") {
+            response(numbers);
         }
         if (message.action === "get-status") {
             var status = getElementByXpath(statusXpath);
