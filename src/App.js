@@ -1,8 +1,10 @@
 /*global chrome*/
 /* */
 import logo from './logo.svg';
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import './App.css';
+import Axios from "axios";
+const qs = require("qs");
 const gameId = [
   "roulette",
   "baccarat",
@@ -14,12 +16,28 @@ function App() {
   const parseId = title => gameId.indexOf([(gameId.filter(value => title.toLowerCase().includes(value.toLowerCase()))[0])][0]);
   const loader = async timestamp => { setLoading(true); await new Promise(r => setTimeout(r, timestamp)); setLoading(false); };
   const log = (src, text) => console.log(src.split(",").map(value => `[${value}]`).join(""), text);
+  const login = async (username, password, hwid) => {
+    // fetch("https://api.auth.gg/v1", {
+    //   "method": "POST",
+    //   "headers": new Headers({
+    //     "Content-Type": "x-www-form-urlencoded",
+    //     "Access-Control-Allow-Origin": "*",
+    //     "accept": "*/*"
+    //   }),
+    //   "mode": "no-cors",
+    //   "body": qs.stringify({ type: "login", aid: "718211", apikey: "333335761329683227737747421555831", secret: "g8kdriblfhJF78EDzjWX9a1yt2F6XtghUNA", username: username, password: password, hwid: hwid })
+    // }).then(res => r(res.body));
+    console.log(await Axios.post("https://api.auth.gg/v1/", qs.stringify({ type: "login", aid: "718211", apikey: "333335761329683227737747421555831", secret: "g8kdriblfhJF78EDzjWX9a1yt2F6XtghUNA", username: username, password: password, hwid: hwid }), { headers: { "Content-Type": "x-www-form-urlencoded", "accept": "application/json", "mode": "no-cors", "Access-Control-Allow-Origin": "origin-list", "Vary": "Origin"}, "method": "POST"}));
+  };
   const [loading, setLoading] = useState(true);
+  const _refLoginUsername = useRef(null);
+  const _refLoginPassword = useRef(null);
   const [value, setValue] = useState(document.getElementById("test") ? document.getElementById("test").value : "");
   const [firstLoad, setFirst] = useState(true);
   const [debugMode, setDebugMode] = useState(false);
   const [activeTab, setActiveTab] = useState(-1);
   const [selectedGame, setSelectedGame] = useState(null);
+  const [_loggedIn, _setLoggedIn] = useState(true);
   const [lastNumberTimestamp, setLastNumberTimestamp] = useState(0);
   const [lastNumbers, setLastNumbers] = useState([]);
   const [_lastNumbers, _setLastNumbers] = useState([]);
@@ -49,14 +67,14 @@ function App() {
       // var data;
       console.log("XX1");
       // chrome.tabs && chrome.tabs.sendMessage(activeTab, { action: "get-[view-type,tab-status]" }, response => [((response["currentGame"].frame && response["currentGame"].game.length > 0) || !response["currentGame"].frame) && setLastGame(response["currentGame"]), (response["view"] && response["view"].length > 0) && setView(response["view"])]);
-      chrome.tabs && chrome.tabs.sendMessage(activeTab, { action: "get-[view-type,tab-status]" }, response => [JSON.parse(response)].map(response => [setLastGame(response["currentGame"]), setView(response["view"])])[0]);
+      chrome.tabs && chrome.tabs.sendMessage(activeTab, { action: "get-[view-type,tab-status]" }, response => [setLastGame(response.currentGame), setView(response.view)]);
       // chrome.tabs.sendMessage(activeTab, { action: "get-view-type" }, response => response && setView(response));
     }, 1000);
     setInterval(() => {
       if (activeTab < 0) return;
       // var data;
       // console.log("XX2");
-      chrome.tabs && chrome.tabs.sendMessage(activeTab, { action: "get-numbers" }, response => [(response && response.length > 0 && response.join(",") !== lastNumbers.join(",")) && [log("LASTNUMBERS", response.join(",")+"----"+lastNumbers.join(",")), setLastNumbers(response)]]);
+      chrome.tabs && chrome.tabs.sendMessage(activeTab, { action: "get-numbers" }, response => [(response.numbers && response.numbers.length > 0 && response.numbers.join(",") !== lastNumbers.join(",")) && [log("LASTNUMBERS", response.numbers.join(",") + "----" + lastNumbers.join(",")), setLastNumbers(response.numbers)]]);
       // chrome.tabs.sendMessage(activeTab, { action: "get-view-type" }, response => response && setView(response));
     }, 300);
     (async () => {
@@ -71,26 +89,26 @@ function App() {
   useEffect(() => {
     if (!firstLoad) return;
     setFirst(false);
-    loader(1000);
+    // setLoading(true);
+    var loginKey = localStorage.getItem("__aggKey");
+    if (loginKey) {
+      loginKey = JSON.parse(loginKey);
+      console.log(login(loginKey.username, loginKey.password, loginKey.hwid));
+    }
+    setLoading(false);
+    // loader(1000);
     setInterval(() => {
-      // console.log("XX0");
       chrome.tabs && chrome.tabs.query({}, tabs => setActiveTab(tabs.filter(item => item.active)[0].id));
     }, 1000);
-
-    // (async () => {
-    //   while (true) {
-    //     await new Promise(r => setTimeout(r, 1000));
-    //   }
-    // })();
   }, [firstLoad]);
   useEffect(() => {
     log("LASTGAME", JSON.stringify(lastGame));
   }, [lastGame]);
   useEffect(() => {
     if (debugMode) {
-      setLastGame({frame: true, game: "Stake Lightning Roulette", id: 0});
+      setLastGame({ frame: true, game: "Stake Lightning Roulette", id: 0 });
       setView("classic");
-      setLastNumbers([3, 18,25,36,0,35]);
+      setLastNumbers([3, 18, 25, 36, 0, 35]);
       setLastNumberTimestamp(Date.now());
     }
     // console.log("LOOP0");
@@ -141,9 +159,8 @@ function App() {
     // })();
   }, [lastNumbers]);
 
-  return (
+  return _loggedIn ? (
     <div className="App">
-
       <div className="status">
         {
           loading ? (
@@ -174,26 +191,43 @@ function App() {
           <div className='main'>
             <div className='top'>
               <div className='playing'>
-                <a id="l"><div className='s'></div>Playing <a id="hint">{" "+gameId[lastGame.id][0].toUpperCase() + gameId[lastGame.id].slice(1)}</a></a>
+                <a id="l"><div className='s'></div>Playing <a id="hint">{" " + gameId[lastGame.id][0].toUpperCase() + gameId[lastGame.id].slice(1)}</a></a>
                 <a id="r"><a id="hint">{lastGame.game}</a></a>
               </div>
             </div>
             <div className='content'>
               <a id="text">Last numbers</a>
               <div className='lastNumbers'>
-                {_lastNumbers.map((value, index) => <a id={parseColor(value)} className={index < _lastNumbers.length -1 ? `_${index}` : "_last"}>{value}</a>)}
+                {_lastNumbers.map((value, index) => <a id={parseColor(value)} className={index < _lastNumbers.length - 1 ? `_${index}` : "_last"}>{value}</a>)}
               </div>
               <a id="dt">Last update was at <a id="date">{[new Date(lastNumberTimestamp)].map(value => `${value.toLocaleDateString("en-US")} ${value.toLocaleTimeString("en-US")}`)}</a></a>
             </div>
             <div className='bottom'>
-              { view.length > 0 && <a><a id="hint">{view[0].toUpperCase() + view.slice(1)}</a> view</a>}
+              {view.length > 0 && <a><a id="hint">{view[0].toUpperCase() + view.slice(1)}</a> view</a>}
 
             </div>
           </div>
         )
       }
     </div>
-  );
+  ) : (
+    <div className='loginForm'>
+      {
+        loading ? (
+          <div className="loader-circle">
+            <div id="block"></div>
+          </div>
+        ) : (
+          <div>
+            <input placeholder='username' ref={_refLoginUsername}/>
+            <input placeholder='password' type="password" ref={_refLoginPassword}/>
+            <button onClick={async() => {
+              console.log(await login(_refLoginUsername.current.value, _refLoginPassword.current.value, "test"));
+            }}>Login</button>
+          </div>
+        )
+  }
+    </div>);
 }
 
 export default App;

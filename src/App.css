@@ -249,8 +249,8 @@ body {
   margin-left: auto;
 }
 .main .playing #r #hint {
-  animation: rgbFore 1s infinite linear 0s;
-  -webkit-animation: rgbFore 1s infinite linear 0s;
+  animation: rgbFore 2.5s infinite linear 0s;
+  -webkit-animation: rgbFore 2.5s infinite linear 0s;
 }
 
 .main .bottom {
@@ -346,4 +346,7 @@ body {
 }
 .lastNumbers #green {
   background-color: green;
+}
+a, p {
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
 }
