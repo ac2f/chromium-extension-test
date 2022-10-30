@@ -10,8 +10,8 @@ const gameId = [
 
 var _xpath = {
     iframe: `//*[contains(@src, "https://babylonstk.evo-games.com")]`,
-    gameName: `//span[@data-role="table-name"]`,
-    lastNumber: `//div[contains(@class,"recent-numbers")]/div/div[${iStr}]//span[contains(@class, "value")]`,
+    gameName: `//div[contains(@class, "tableInfoContainer")]/div[1]/span`,
+    lastNumber: `//div[contains(@class,"recent-numbers") or contains(@class, "recentNumbers")]/div/div[${iStr}]//span[contains(@class, "value")]`,
     viewImmersive: `//div[@data-role="current-view-immersivev2"]`,
     viewClassic: `//div[@data-role="current-view-classic"]`,
     viewImmersive__Status: `//div[contains(@class, "timerAndResult")]/div`,
@@ -29,9 +29,72 @@ const getElementByXpath = xpath => document.evaluate(xpath, document, null, XPat
 const xpath = (k, i = 1, d = "iframe") => _xpath[k].replace(fStr, _xpath[d] + "//").replace(iStr, i + "");
 const parseId = title => gameId.indexOf([(gameId.filter(value => title.toLowerCase().includes(value.toLowerCase()))[0])][0]);
 const log = (src, text) => console.log(src.split(",").map(value => `[${value}]`).join(""), text);
-var frameExist = false;
+const sendToWS = data => wsc && wsc.send(JSON.stringify(data));
+const actions = async message => {
+    if (message.action === "get-tab-status") {
+        // var data = JSON.parse(localStorage.getItem("currentGame"));
+        log(`RESPONSE,${message.action}`, currentGame);
+        return currentGame;
+    }
+    if (message.action === "get-view-type") {
+        log(`RESPONSE,${message.action}`, view);
+        console.log(`RESPONSE,${message.action}`, view);
+        return view;
+    }
+    if (message.action === "get-[view-type,tab-status]") {
+        log(`RESPONSE,${message.action}`, "");
+        return JSON.stringify({ currentGame: currentGame, view: view });
+    }
+    if (message.action === "get-numbers") {
+        return numbers;
+    }
+    if (message.action === "get-status") {
+        // var status = getElementByXpath(statusXpath);
+        // status = status ? status.textContent : lastStatus;
+        // // status !== lastStatus &&
+        // response(status ?? lastStatus);
+        // console.log("[SENT]", String(status ?? lastStatus));
+        // lastStatus = status;
+    }
+    if (message.action === "click") {
+        var order = message.order;
+        for (let index = 0; index < order.length; index++) {
+            var element = await getElementByXpath(`//*[@class="classicStandard-wrapper"]/*[@data-bet-spot-id="${order[index]}"]`);
+            if (!element) continue;
+            // element.addEventListener("click", () => {console.log("click event");});
+            // var ev = new MouseEvent('click');
+            // var el = document.elementFromPoint(x, y);
+            // console.log(el); //print element to console
+            try {
+                // var x = element.dispatchEvent(ev);
+                await new Promise(r => setTimeout(r, 1000));
+                // element.click();
+                // element.addEventListener('click', () => { });
+                element.dispatchEvent(new Event('click'));
+                // element.click();
+                // element.
+            } catch (error) {
+                if (String(error).includes("not a function"))
+                    console.log("ERR:", error, getElementByXpath(`//*[@class="classicStandard-wrapper"]/*[@data-bet-spot-id="${order[index]}"]`));
+                else console.log(element ? element[0] : String(element));
+            }
+        }
+        console.log("[SENT] OK");
+        return "OK";
+    }
+    if (message.action === "click-xpath") {
+        var element = await getElementByXpath(message.xpath);
+        if (element === null || element === undefined) { return "Invalid XPATH!"; }
+        else if (element) {
+            var ev = new Event("click");
+            console.log("[XPATH]", message.xpath);
+            element.click();
+            return "OK CLICKED XPATH!";
+        }
+    }
+};
 // var wssConnectionTries = 0;
-const initWS = () => {
+(() => {
     if (!wsc) {
         try {
             log("WSS", "WSS not set! Connecting port 30105..");
@@ -41,6 +104,7 @@ const initWS = () => {
             };
             wsc.onmessage = data => {
                 log("WSS", `WSS sent data: ${data.data}`);
+                wsc.send(actions(JSON.parse(data.data)));
             };
             wsc.onclose = () => [log("WSS", "WSS closed!"), alert("Connection to program has closed! You must run the application and reload the page.")];
             wsc.onerror = error => console.log(error);
@@ -49,32 +113,38 @@ const initWS = () => {
             // log("WSS", "Failed to connect to program. Program might not be running or firewall blocks the connection.");
         }
     }
-};
-setInterval(() => {
-    var x = getElementByXpath(xpath("iframe"));
-    !frameExist && log("FRAMECHECK", "Checking..");
-    if (!!x) {
-        !frameExist && log("FRAMECHECK", "Frame exist!");
-        log("FRAMECHECK", `Frame exist 0: ${frameExist}`);
-        currentGame.frame = true;
-        log("FRAMECHECK", `--- Frame exist: ${currentGame.frame}`);
-        initWS();
-        if (!frameExist) {
-            var tmpText = getElementByXpath(xpath("gameName"));
-            if (tmpText && tmpText.textContent.length > 0) {
-                currentGame.game = tmpText.textContent;
-                currentGame.id = parseId(tmpText.textContent);
-            }
-            console.log(`SET: ${JSON.stringify(currentGame)}`);
+})();
+setInterval(() => (async () => {
+    // var x = getElementByXpath(xpath("iframe"));
+    // !frameExist && log("FRAMECHECK", "Checking..");
+    // if (!!x) {
+    //     !frameExist && log("FRAMECHECK", "Frame exist!");
+    //     // log("FRAMECHECK", `Frame exist 0: ${frameExist}`);
+    //     log("FRAMECHECK", `--- Frame exist: ${currentGame.frame}`);
+    console.log("999999993123 - 1");
+    var tmpText = getElementByXpath(xpath("gameName"));
+    if (tmpText) {
+        console.log("999999993123 - 2", tmpText, xpath("gameName"), "q");
+        if (tmpText.textContent.length > 0 && currentGame.game !== tmpText.textContent) {
+            currentGame.game = tmpText.textContent;
+            currentGame.id = parseId(tmpText.textContent);
+            currentGame.frame = true;
         }
-        frameExist = true;
-    } else {
-        log("FRAMECHECK", "Xpath not exist!");
-        currentGame.frame = false;
-        frameExist = false;
+        console.log(`SET: ${JSON.stringify(currentGame)}`);
+        return;
     }
+    currentGame = {
+        frame: false,
+        game: "",
+        id: -1
+    };
+    // } else {
+    //     log("FRAMECHECK", "Xpath not exist!");
+    //     currentGame.frame = false;
+    //     frameExist = false;
+    // }
     localStorage.setItem("currentGame", JSON.stringify(currentGame));
-}, 3000);
+})().then(res => res), 3000);
 setInterval(() => (async () => {
     if (!currentGame.frame || currentGame.id !== parseId("roulette")) return;
     var tmpArr = [];
@@ -90,7 +160,7 @@ setInterval(() => (async () => {
         tmpArr.push(value);
         await new Promise(r => setTimeout(r, 100));
     }
-    if(numbers !== max) numbers = tmpArr;
+    if (numbers !== max) numbers = tmpArr;
     // else numbers[0] = tmpArr[0];
 })().then(res => res), 1000);
 setInterval(() =>
@@ -127,66 +197,7 @@ const messagesFromReactAppListener = async (message, sender, response) => {
     var statusXpath = `//div[contains(@data-role,"status-text")]`;
     if (sender.id === chrome.runtime.id) {
         log("REQUEST", message.action);
-        if (message.action === "get-tab-status") {
-            var data = JSON.parse(localStorage.getItem("currentGame"));
-            response(data);
-            log(`RESPONSE,${message.action}`, data);
-        }
-        if (message.action === "get-view-type") {
-            response(view);
-            log(`RESPONSE,${message.action}`, view);
-        }
-        if (message.action === "get-[view-type,tab-status]") {
-            response([JSON.parse(localStorage.getItem("currentGame")), view]);
-            log(`RESPONSE,${message.action}`, "");
-        }
-        if (message.action === "get-numbers") {
-            response(numbers);
-        }
-        if (message.action === "get-status") {
-            var status = getElementByXpath(statusXpath);
-            status = status ? status.textContent : lastStatus;
-            // status !== lastStatus &&
-            response(status ?? lastStatus);
-            console.log("[SENT]", String(status ?? lastStatus));
-            lastStatus = status;
-        }
-        if (message.action === "click") {
-            var order = message.order;
-            for (let index = 0; index < order.length; index++) {
-                var element = await getElementByXpath(`//*[@class="classicStandard-wrapper"]/*[@data-bet-spot-id="${order[index]}"]`);
-                if (!element) continue;
-                // element.addEventListener("click", () => {console.log("click event");});
-                // var ev = new MouseEvent('click');
-                // var el = document.elementFromPoint(x, y);
-                // console.log(el); //print element to console
-                try {
-                    // var x = element.dispatchEvent(ev);
-                    await new Promise(r => setTimeout(r, 1000));
-                    // element.click();
-                    // element.addEventListener('click', () => { });
-                    element.dispatchEvent(new Event('click'));
-                    // element.click();
-                    // element.
-                } catch (error) {
-                    if (String(error).includes("not a function"))
-                        console.log("ERR:", error, getElementByXpath(`//*[@class="classicStandard-wrapper"]/*[@data-bet-spot-id="${order[index]}"]`));
-                    else console.log(element ? element[0] : String(element));
-                }
-            }
-            console.log("[SENT] OK");
-            response("OK");
-        }
-        if (message.action === "click-xpath") {
-            var element = await getElementByXpath(message.xpath);
-            if (element === null || element === undefined) { response("Invalid XPATH!"); }
-            else if (element) {
-                var ev = new Event("click");
-                console.log("[XPATH]", message.xpath);
-                element.click();
-                response("OK CLICKED XPATH!");
-            }
-        }
+        response(actions(message));
     }
 };
 /**

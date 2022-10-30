@@ -10,7 +10,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://stake.com", "https://staketr.com"],
+      "matches": ["https://babylonstk.evo-games.com/*"],
       "js": ["./static/js/content.js"],
       "all_frames": true,
       "run_at": "document_end"

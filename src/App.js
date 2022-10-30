@@ -17,24 +17,26 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [value, setValue] = useState(document.getElementById("test") ? document.getElementById("test").value : "");
   const [firstLoad, setFirst] = useState(true);
+  const [debugMode, setDebugMode] = useState(false);
   const [activeTab, setActiveTab] = useState(-1);
   const [selectedGame, setSelectedGame] = useState(null);
-  const [lastNumberTimestamp, setLastNumberTimestamp] = useState(17347346);
-  const [lastNumbers, setLastNumbers] = useState([6,12,0,3, 33,36]);
+  const [lastNumberTimestamp, setLastNumberTimestamp] = useState(0);
+  const [lastNumbers, setLastNumbers] = useState([]);
+  const [_lastNumbers, _setLastNumbers] = useState([]);
   const parseColor = num => [parseInt(num.toString())].map(value => value > -1 && value < 37)[0] ? (num.toString() === "0" ? "green" : "1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36".split(",").includes(num.toString()) ? "red" : "black") : null;
   const [intervals, setIntervals] = useState({
     roulette: [],
     baccarat: [],
     blackjack: []
   });
-  const [view, setView] = useState("immersive");
+  const [view, setView] = useState("");
   const [lastGame, setLastGame] = useState({
     frame: false,
     game: "",
     id: -1
   });
   useEffect(() => {
-    setLastGame({ frame: true, game: "roulette", id: 0 });
+    // setLastGame({ frame: true, game: "roulette", id: 0 });
     if (activeTab < 0) return;
     console.log("activeTab:", activeTab);
     setLastGame({
@@ -45,15 +47,16 @@ function App() {
     setInterval(() => {
       if (activeTab < 0) return;
       // var data;
-      // console.log("XX1");
-      chrome.tabs && chrome.tabs.sendMessage(activeTab, { action: "get-[view-type,tab-status]" }, response => [((response[0].frame && response[0].game.length > 0) || !response[0].frame) && setLastGame(response[0]), (response[1] && response[1].length > 0) && setView(response[1])]);
+      console.log("XX1");
+      // chrome.tabs && chrome.tabs.sendMessage(activeTab, { action: "get-[view-type,tab-status]" }, response => [((response["currentGame"].frame && response["currentGame"].game.length > 0) || !response["currentGame"].frame) && setLastGame(response["currentGame"]), (response["view"] && response["view"].length > 0) && setView(response["view"])]);
+      chrome.tabs && chrome.tabs.sendMessage(activeTab, { action: "get-[view-type,tab-status]" }, response => [JSON.parse(response)].map(response => [setLastGame(response["currentGame"]), setView(response["view"])])[0]);
       // chrome.tabs.sendMessage(activeTab, { action: "get-view-type" }, response => response && setView(response));
     }, 1000);
     setInterval(() => {
       if (activeTab < 0) return;
       // var data;
       // console.log("XX2");
-      chrome.tabs && chrome.tabs.sendMessage(activeTab, { action: "get-numbers" }, response => [(response && response.length > 0 && response !== lastNumbers) && setLastNumbers(response)]);
+      chrome.tabs && chrome.tabs.sendMessage(activeTab, { action: "get-numbers" }, response => [(response && response.length > 0 && response.join(",") !== lastNumbers.join(",")) && [log("LASTNUMBERS", response.join(",")+"----"+lastNumbers.join(",")), setLastNumbers(response)]]);
       // chrome.tabs.sendMessage(activeTab, { action: "get-view-type" }, response => response && setView(response));
     }, 300);
     (async () => {
@@ -84,6 +87,12 @@ function App() {
     log("LASTGAME", JSON.stringify(lastGame));
   }, [lastGame]);
   useEffect(() => {
+    if (debugMode) {
+      setLastGame({frame: true, game: "Stake Lightning Roulette", id: 0});
+      setView("classic");
+      setLastNumbers([3, 18,25,36,0,35]);
+      setLastNumberTimestamp(Date.now());
+    }
     // console.log("LOOP0");
     // // (async () => {
     // //   if (activeTab < 0) return;
@@ -101,11 +110,12 @@ function App() {
     // (async () => {
 
     // })();
-  }, []);
+  }, [debugMode]);
   // setInterval(() => {
   //   chrome.tabs.sendMessage(activeTab, { action: "get-tab-status" }, response => (response.frame && response.game.length > 0) && setLastGame(response));
   // }, 3000);
   useEffect(() => {
+    if (lastNumbers.join(",") !== _lastNumbers.join(",")) (() => [_setLastNumbers(lastNumbers), setLastNumberTimestamp(Date.now())])();
     // const interval1 = setInterval(() => {
     //   chrome.tabs.query({}, tabs => setActiveTab(tabs.filter(item => item.active)[0].id));
     // }, 1000);
@@ -129,7 +139,7 @@ function App() {
     // (async () => {
 
     // })();
-  }, []);
+  }, [lastNumbers]);
 
   return (
     <div className="App">
@@ -160,18 +170,18 @@ function App() {
         }
       </div>
       {
-        lastGame.frame && (
+        lastGame.id >= 0 && (
           <div className='main'>
             <div className='top'>
               <div className='playing'>
-                <a id="l">Playing <a id="hint">{gameId[lastGame.id][0].toUpperCase() + gameId[lastGame.id].slice(1)}</a></a>
+                <a id="l"><div className='s'></div>Playing <a id="hint">{" "+gameId[lastGame.id][0].toUpperCase() + gameId[lastGame.id].slice(1)}</a></a>
                 <a id="r"><a id="hint">{lastGame.game}</a></a>
               </div>
             </div>
             <div className='content'>
               <a id="text">Last numbers</a>
               <div className='lastNumbers'>
-                {lastNumbers.map((value, index) => <a id={parseColor(value)} className={index < lastNumbers.length -1 ? `_${index}` : "_last"}>{value}</a>)}
+                {_lastNumbers.map((value, index) => <a id={parseColor(value)} className={index < _lastNumbers.length -1 ? `_${index}` : "_last"}>{value}</a>)}
               </div>
               <a id="dt">Last update was at <a id="date">{[new Date(lastNumberTimestamp)].map(value => `${value.toLocaleDateString("en-US")} ${value.toLocaleTimeString("en-US")}`)}</a></a>
             </div>
